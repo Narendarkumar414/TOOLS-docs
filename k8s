@@ -1,0 +1,26 @@
+node {
+   def KOPS_STATE_STORE
+   def NAME
+   def tag
+   def k8DeploymentName
+   def imageName
+   stage('Preparation') { // for display purposes
+      echo 'Preparing build environments'
+      KOPS_STATE_STORE = 's3://clusters.k8-dev.nonton.com'
+      NAME = 'mycluster.k8-dev.nonton.com'
+      tag = params.BUILD_TAG
+      k8DeploymentName = 'deployment.v1.apps/security-framework-deployment'
+      imageName = 'security-framework-ms=docker-registry.nonton.99array.com:5443/security_framework_prod:'
+      echo 'Using ' + KOPS_STATE_STORE + ' as state store'
+      echo 'Using ' + NAME + ' as cluster name'
+      echo 'Using ' + tag + ' as build tag'
+   }
+   stage('Updating Deployment Image') {
+      echo 'Deploying the latest application with rolling update'
+      sh 'ssh -i /home/ubuntu/nonton-private-key.pem ubuntu@18.136.51.254 "kubectl set image ' + k8DeploymentName + ' ' + imageName + tag + ' --record"'
+   }
+   stage('Verifying Deployment') {
+       echo 'Verifying rollout status'
+      sh 'ssh -i /home/ubuntu/nonton-private-key.pem ubuntu@18.136.51.254 "kubectl rollout status ' + k8DeploymentName +'"'
+   }
+}
