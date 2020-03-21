@@ -1,0 +1,1 @@
+ kops create cluster --node-count=1 --node-size=t2.medium --master-size=t2.medium --associate-public-ip=false --topology=private --networking=cni --zones=us-east-1a --name=${KOPS_CLUSTER_NAME}
