@@ -11,7 +11,7 @@
 
 
 
-
+FOR CREATING BASTION FOLLOW THE LINK BELOW
 REFERENCE LINK:- https://github.com/kubernetes/kops/blob/master/docs/examples/kops-tests-private-net-bastion-host.md#adding-a-bastion-host-to-our-cluster
 
 AFTER THIS YOU NEED TO CREATE A BASTION SERVER FOR SSH TO YOUR MASTER AND WORKERS NODES
