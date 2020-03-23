@@ -1,1 +1,10 @@
- kops create cluster --node-count=1 --node-size=t2.medium --master-size=t2.medium --associate-public-ip=false --topology=private --networking=cni --zones=us-east-1a --name=${KOPS_CLUSTER_NAME}
+ kops create cluster \
+  --node-count=1 \
+  --zones=us-east-1a \
+  --node-size=t2.micro \
+  --master-size=t2.micro \
+  --master-zones=us-east-1b \
+  --networking=weave \
+  --topology=private \
+  --name=${KOPS_CLUSTER_NAME} \
+  --yes
