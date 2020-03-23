@@ -1,3 +1,5 @@
+REF LINK:- https://github.com/kubernetes/kops/blob/master/docs/cli/kops_create_cluster.md
+
 kops create cluster \
   --node-count=1 \
   --zones=us-east-1a \
