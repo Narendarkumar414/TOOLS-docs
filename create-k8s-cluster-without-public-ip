@@ -8,3 +8,96 @@
   --topology=private \
   --name=${KOPS_CLUSTER_NAME} \
   --yes
+
+
+
+
+REFERENCE LINK:- https://github.com/kubernetes/kops/blob/master/docs/examples/kops-tests-private-net-bastion-host.md#adding-a-bastion-host-to-our-cluster
+
+AFTER THIS YOU NEED TO CREATE A BASTION SERVER FOR SSH TO YOUR MASTER AND WORKERS NODES
+
+
+CREATE BASTION USING
+
+kops create instancegroup bastions --role Bastion --subnet utility-us-east-1a --name ${KOPS_CLUSTER_NAME}
+
+
+Explanation of this command:
+
+This command will add to our cluster definition a new instance group called "bastions" with the "Bastion" role on the aws subnet "utility-us-east-1a". Note that the "Bastion" role need the first letter to be a capital (Bastion=ok, bastion=not ok).
+The subnet "utility-us-east-1a" was created when we created our cluster the first time. KOPS add the "utility-" prefix to all subnets created on all specified AZ's. In other words, if we instructed kops to deploy our instances on us-east-1a, use-east-1b and use-east-1c, kops will create the subnets "utility-us-east-1a", "utility-us-east-1b" and "utility-us-east-1c". Because we need to tell kops where to deploy our bastion (or bastions), we need to specify the subnet.
+
+You'll see the following output in your editor when you can change your bastion group size and add more networks.
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  name: bastions
+spec:
+  image: kope.io/k8s-1.7-debian-jessie-amd64-hvm-ebs-2017-07-28
+  machineType: t2.micro
+  maxSize: 1
+  minSize: 1
+  role: Bastion
+  subnets:
+  - utility-us-east-1a
+
+Save this and deploy the changes:
+
+kops update cluster ${NAME} --yes
+
+
+
+Our bastion instance group is there. Also, kops created an ELB for our "bastions" instance group that we can check with the following command:
+
+aws elb --output=table describe-load-balancers|grep DNSName.\*bastion|awk '{print $4}'
+bastion-privatekopscluste-bgl0hp-1327959377.us-east-1.elb.amazonaws.com
+
+
+For this LAB, the "ELB" FQDN is "bastion-privatekopscluste-bgl0hp-1327959377.us-east-1.elb.amazonaws.com" We can "ssh" to it:
+
+
+ssh -i ~/.ssh/id_rsa admin@bastion-privatekopscluste-bgl0hp-1327959377.us-east-1.elb.amazonaws.com
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Mon Aug 28 18:07:16 2017 from 172.20.0.238
+
+
+
+Because we really want to use a ssh-agent, start it first (this will :
+
+eval `ssh-agent -s`
+And add your key to the agent with "ssh-add":
+
+ssh-add ~/.ssh/id_rsa
+
+Identity added: /home/kops/.ssh/id_rsa (/home/kops/.ssh/id_rsa)
+Then, ssh to your bastion ELB FQDN
+
+ssh -A admin@bastion-privatekopscluste-bgl0hp-1327959377.us-east-1.elb.amazonaws.com
+Or if you want to automate it:
+
+ssh -A admin@`aws elb --output=table describe-load-balancers|grep DNSName.\*bastion|awk '{print $4}'`
+And from the bastion, you can ssh to your masters or workers:
+
+admin@ip-172-20-2-64:~$ ssh admin@ip-172-20-53-10.ec2.internal
+
+The authenticity of host 'ip-172-20-53-10.ec2.internal (172.20.53.10)' can't be established.
+ECDSA key fingerprint is d1:30:c6:5e:77:ff:cd:d2:7d:1f:f9:12:e3:b0:28:e4.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'ip-172-20-53-10.ec2.internal,172.20.53.10' (ECDSA) to the list of known hosts.
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+
+admin@ip-172-20-53-10:~$
