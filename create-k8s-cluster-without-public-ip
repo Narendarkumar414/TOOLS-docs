@@ -1,4 +1,4 @@
- kops create cluster \
+kops create cluster \
   --node-count=1 \
   --zones=us-east-1a \
   --node-size=t2.micro \
@@ -8,7 +8,6 @@
   --topology=private \
   --name=${KOPS_CLUSTER_NAME} \
   --yes
-
 
 
 FOR CREATING BASTION FOLLOW THE LINK BELOW
