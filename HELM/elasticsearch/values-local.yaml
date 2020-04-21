@@ -1,0 +1,669 @@
+---
+clusterName: "elasticsearch"
+nodeGroup: "master"
+
+# The service that non master groups will try to connect to when joining the cluster
+# This should be set to clusterName + "-" + nodeGroup for your master group
+masterService: ""
+
+# Elasticsearch roles that will be applied to this nodeGroup
+# These will be set as environment variables. E.g. node.master=true
+roles:
+  master: "true"
+  ingest: "true"
+  data: "true"
+
+replicas: 3
+minimumMasterNodes: 2
+
+esMajorVersion: ""
+# Allows you to add any config files in /usr/share/elasticsearch/config/
+# such as elasticsearch.yml and log4j2.properties
+esConfig:
+  elasticsearch.yml: |
+    opendistro_security.allow_unsafe_democertificates: false
+    opendistro_security.ssl.transport.pemcert_filepath: node.pem
+    opendistro_security.ssl.transport.pemkey_filepath: node.key
+    opendistro_security.ssl.transport.pemtrustedcas_filepath: root-ca.pem
+    opendistro_security.ssl.transport.enforce_hostname_verification: false
+    opendistro_security.ssl.transport.resolve_hostname: false
+    opendistro_security.ssl.http.enabled: true
+    opendistro_security.ssl.http.pemcert_filepath: elasticsearch-client.pem
+    opendistro_security.ssl.http.pemkey_filepath: elasticsearch-client.key
+    opendistro_security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+    opendistro_security.allow_default_init_securityindex: false
+    opendistro_security.authcz.admin_dn:
+      - 'ST=NewDelhi,OU=elasticsearch-cluster,O=Goals101,C=IN,CN=admin'
+    opendistro_security.nodes_dn:
+      - 'ST=NewDelhi,OU=elasticsearch-cluster,O=Goals101,C=IN,CN=elasticsearch-master-headless'
+    opendistro_security.audit.type: internal_elasticsearch
+    opendistro_security.enable_snapshot_restore_privilege: true
+    opendistro_security.check_snapshot_restore_write_privileges: true
+    opendistro_security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+    cluster.routing.allocation.disk.threshold_enabled: false
+    node.max_local_storage_nodes: 3
+    opendistro_security.audit.config.disabled_rest_categories: NONE
+    opendistro_security.audit.config.disabled_transport_categories: NONE
+opendisctroSecurityConfig:
+  config.yml: |
+    _meta:
+      type: "config"
+      config_version: 2
+    config:
+      dynamic:
+        filtered_alias_mode: "warn"
+        disable_rest_auth: false
+        disable_intertransport_auth: false
+        respect_request_indices_options: false
+        license: null
+        kibana:
+          multitenancy_enabled: true
+        authc:
+          basic_internal_auth_domain:
+            http_enabled: true
+            transport_enabled: true
+            order: 1
+            http_authenticator:
+              type: basic
+              challenge: true
+            authentication_backend:
+              type: intern
+          ldap:
+            description: "Authenticate via LDAP or Active Directory"
+            http_enabled: true
+            transport_enabled: true
+            order: 2
+            http_authenticator:
+              type: basic
+              challenge: false
+            authentication_backend:
+              # LDAP authentication backend (authenticate users against a LDAP or Active Directory)
+              type: ldap
+              config:
+                # enable ldaps
+                enable_ssl: false
+                # enable start tls, enable_ssl should be false
+                enable_start_tls: false
+                # send client certificate
+                enable_ssl_client_auth: false
+                # verify ldap hostname
+                verify_hostnames: false
+                hosts:
+                - openldap.default:389
+                bind_dn: cn=admin,dc=apache,dc=org
+                password: aoy8tDqWcb65E3vmXknP8lnc9TvdqctA
+                userbase: 'ou=people,dc=hadoop,dc=apache,dc=org'
+                # Filter to search for users (currently in the whole subtree beneath userbase)
+                # {0} is substituted with the username
+                usersearch: '(uid={0})'
+                # Use this attribute from the user as username (if not set then DN is used)
+                username_attribute: uid
+        authz:
+          roles_from_myldap:
+            description: "Authorize via LDAP or Active Directory"
+            http_enabled: true
+            transport_enabled: true
+            authorization_backend:
+              # LDAP authorization backend (gather roles from a LDAP or Active Directory, you have to configure the above LDAP authentication backend settings too)
+              type: ldap
+              config:
+                # enable ldaps
+                enable_ssl: false
+                # enable start tls, enable_ssl should be false
+                enable_start_tls: false
+                # send client certificate
+                enable_ssl_client_auth: false
+                # verify ldap hostname
+                verify_hostnames: false
+                hosts:
+                - openldap.elasticsearch:389
+                bind_dn: cn=admin,dc=apache,dc=org
+                password: aoy8tDqWcb65E3vmXknP8lnc9TvdqctA
+                rolebase: 'ou=groups,dc=hadoop,dc=apache,dc=org'
+                # Filter to search for roles (currently in the whole subtree beneath rolebase)
+                # {0} is substituted with the DN of the user
+                # {1} is substituted with the username
+                # {2} is substituted with an attribute value from user's directory entry, of the authenticated user. Use userroleattribute to specify the name of the attribute
+                rolesearch: '(member={0})'
+                # Specify the name of the attribute which value should be substituted with {2} above
+                userroleattribute: uid
+                # Roles as an attribute of the user entry
+                # userrolename: disabled
+                userrolename: memberOf
+                # The attribute in a role entry containing the name of that role, Default is "name".
+                # Can also be "dn" to use the full DN as rolename.
+                rolename: cn
+                # Resolve nested roles transitive (roles which are members of other roles and so on ...)
+                resolve_nested_roles: true
+                userbase: 'ou=people,dc=hadoop,dc=apache,dc=org'
+                # Filter to search for users (currently in the whole subtree beneath userbase)
+                # {0} is substituted with the username
+                usersearch: '(uid={0})'
+                # Skip users matching a user name, a wildcard or a regex pattern
+                #skip_users:
+                #  - 'cn=Michael Jackson,ou*people,o=TEST'
+                #  - '/\S*/'
+  roles_mapping.yml: |
+    ---
+    # In this file users, backendroles and hosts can be mapped to Open Distro Security roles.
+    # Permissions for Opendistro roles are configured in roles.yml
+
+    _meta:
+      type: "rolesmapping"
+      config_version: 2
+
+    all_access:
+      reserved: false
+      backend_roles:
+      - "admin"
+      - "hadoop-admin"
+      description: "Maps admin to all_access"
+
+    own_index:
+      reserved: false
+      users:
+      - "*"
+      description: "Allow full access to an index named like the username"
+
+    logstash:
+      reserved: false
+      backend_roles:
+      - "logstash"
+
+
+    kibana_user:
+      reserved: false
+      backend_roles:
+      - "kibanauser"
+      description: "Maps kibanauser to kibana_user"
+
+    readall:
+      reserved: false
+      backend_roles:
+      - "readall"
+
+    manage_snapshots:
+      reserved: false
+      backend_roles:
+      - "snapshotrestore"
+
+    kibana_server:
+      reserved: true
+      users:
+      - "kibanaserver"
+
+    wazuh:
+      reserved: true
+      users:
+      - "wazuh"
+
+  roles.yml: |
+    _meta:
+      type: "roles"
+      config_version: 2
+
+    # Restrict users so they can only view visualization and dashboard on kibana
+    kibana_read_only:
+      reserved: true
+
+    # The security REST API access role is used to assign specific users access to change the security settings through the REST API.
+    security_rest_api_access:
+      reserved: true
+
+    # Allows users to view alerts
+    alerting_view_alerts:
+      reserved: true
+      index_permissions:
+        - index_patterns:
+          - ".opendistro-alerting-alert*"
+          allowed_actions:
+            - read 
+
+    # Allows users to view and acknowledge alerts
+    alerting_crud_alerts:
+      reserved: true
+      index_permissions:
+        - index_patterns:
+          - ".opendistro-alerting-alert*"
+          allowed_actions:
+          - crud 
+
+    # Allows users to use all alerting functionality
+    alerting_full_access:
+      reserved: true
+      index_permissions:
+        - index_patterns:
+          - ".opendistro-alerting-config"
+          - ".opendistro-alerting-alert*"
+          allowed_actions:
+            - crud
+    wazuh_kibana:
+      index_permissions:
+      - index_patterns:
+        - "?kiban*"
+        allowed_actions:
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+      - index_patterns:
+        - "?wazuh"
+        allowed_actions:
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+      - index_patterns:
+        - "?wazuh-version"
+        allowed_actions:
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+      - index_patterns:
+        - "wazuh-alerts-3?x-*"
+        allowed_actions:
+        - indices:admin/mappings/fields/get
+        - indices:admin/validate/query
+        - indices:data/read/search
+        - indices:data/read/msearch
+        - indices:data/read/field_stats
+        - indices:data/read/field_caps
+        - READ
+        - SEARCH
+      - index_patterns:
+        - "wazuh-monitoring*"
+        allowed_actions:
+        - indices:admin/mappings/fields/get
+        - indices:admin/validate/query
+        - indices:data/read/search
+        - indices:data/read/msearch
+        - indices:data/read/field_stats
+        - indices:data/read/field_caps
+        - READ
+        - SEARCH
+      tenant_permissions: []
+      cluster_permissions:
+      - indices:data/read/mget
+      - indices:data/read/msearch
+      - indices:data/read/search
+      - indices:data/read/field_caps
+      - CLUSTER_COMPOSITE_OPS
+      - cluster:monitor/nodes/info
+      - cluster_monitor
+      - cluster_composite_ops
+      - indices:admin/template/get
+      - indices:admin/template/put
+      - cluster:admin/ingest/pipeline/put
+      - cluster:admin/ingest/pipeline/get
+      - cluster:monitor/main
+    wazuh:
+      description: Provide the minimum permissions for wazuh and filebeats
+      index_permissions:
+      - index_patterns:
+        - wazuh-alerts-*
+        allowed_actions:
+        - crud
+        - create_index
+        - cluster:monitor/main
+      tenant_permissions: []
+      cluster_permissions:
+      - cluster_monitor
+      - cluster_composite_ops
+      - indices:admin/template/get
+      - indices:admin/template/put
+      - cluster:admin/ingest/pipeline/put
+      - cluster:admin/ingest/pipeline/get
+      - cluster:monitor/main
+
+  internal_users.yml: |
+    ---
+    # This is the internal user database
+    # The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
+
+    _meta:
+      type: "internalusers"
+      config_version: 2
+
+    # Define your internal users here
+
+    g101-admin:
+      hash: "$2y$12$cskolJ7HQeUytlfMsC0guOqeUYVfr6d8qZVN/8ROSs/DkHSlWtS1i"
+      reserved: true
+      backend_roles:
+      - "admin"
+      description: "admin user"
+
+    kibanaserver:
+      hash: "$2y$12$eYJp.XLrxvJkXWMrLbIm/.NtptIxMu20fO4Jdqn0QlR7d0Q71PwK2"
+      reserved: true
+      description: "kibanaserver user"
+      backend_roles:
+      - "wazuh_kibana"
+      - "admin"
+
+    wazuh:
+      hash: "$2y$12$f0CHIJ8UQuOmynU0vRXp3u7s29o80N/W5t2i3UQClGc8X9iGFlOlG"
+      reserved: true
+      description: "wazuh user"
+      backend_roles:
+      - "wazuh"
+
+    kibanaro:
+      hash: "$2y$12$8FAv9TEEv5hKieAYInWY8.WDJ29lfdFUc2VyVljSk8hcRtFpKDun6"
+      reserved: false
+      backend_roles:
+      - "kibanauser"
+      - "readall"
+      attributes:
+        attribute1: "value1"
+        attribute2: "value2"
+        attribute3: "value3"
+      description: "Demo kibanaro user"
+
+    logstash:
+      hash: "$2y$12$1z1lXDORRJ8xTIR6zAXN0./hpM/EgUR3gntHqgJ5UymU6NnI335xm"
+      reserved: false
+      backend_roles:
+      - "logstash"
+      description: "Demo logstash user"
+
+    readall:
+      hash: "$2y$12$q2ILzohKhzLp5wdkz3vofemKLUGrH3xdaDvUb1LqcRWvJUdAEzmtS"
+      reserved: false
+      backend_roles:
+      - "readall"
+      description: "Demo readall user"
+
+    snapshotrestore:
+      hash: "$2y$12$PL8zYTTwZ/huL4Kw1HggheKh9QBpfNnZzjNFCTPNa2uPh/ziA/Qj6"
+      reserved: false
+      backend_roles:
+      - "snapshotrestore"
+      description: "Demo snapshotrestore user"
+  tenants.yml: |
+    ---
+    _meta:
+      type: "tenants"
+      config_version: 2
+
+    # Define your tenants here
+
+    ## Demo tenants
+    admin_tenant:
+      reserved: false
+      description: "Demo tenant for admin user"
+
+  action_groups.yml: |
+    _meta:
+      type: "actiongroups"
+      config_version: 2
+#  elasticsearch.yml: |
+#    key:
+#      nestedkey: value
+#  log4j2.properties: |
+#    key = value
+
+# Extra environment variables to append to this nodeGroup
+# This will be appended to the current 'env:' key. You can use any of the kubernetes env
+# syntax here
+extraEnvs:
+  - name: DISABLE_INSTALL_DEMO_CONFIG
+    value: "true"
+  - name: ELASTIC_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: elastic-credentials
+        key: password
+  - name: ELASTIC_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: elastic-credentials
+        key: username
+#  - name: MY_ENVIRONMENT_VAR
+#    value: the_value_goes_here
+
+# A list of secrets and their paths to mount inside the pod
+# This is useful for mounting certificates for security and for mounting
+# the X-Pack license
+secretMounts:
+  - name: elasticsearch-client-certs
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/elasticsearch-client.pem
+    subPath: elasticsearch-client.pem
+  - name: elasticsearch-client-key
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/elasticsearch-client.key
+    subPath: elasticsearch-client.key
+  - name: node-certs
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/node.pem
+    subPath: node.pem
+  - name: node-key
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/node.key
+    subPath: node.key
+  - name: admin-certs
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/admin.pem
+    subPath: admin.pem
+  - name: admin-key
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/admin.key
+    subPath: admin.key
+  - name: root-ca
+    secretName: elastic-certificates-goals101
+    path: /usr/share/elasticsearch/config/root-ca.pem
+    subPath: root-ca.pem
+
+image: "opendistro-for-elasticsearch"
+imageTag: "1.3.0"
+imagePullPolicy: "Never"
+
+podAnnotations:
+  {}
+  # iam.amazonaws.com/role: es-cluster
+
+# additionals labels
+labels: {}
+
+esJavaOpts: "-Xmx2g -Xms2g"
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "4Gi"
+  limits:
+    cpu: "1000m"
+    memory: "4Gi"
+
+initResources:
+  {}
+  # limits:
+  #   cpu: "25m"
+  #   # memory: "128Mi"
+  # requests:
+  #   cpu: "25m"
+  #   memory: "128Mi"
+
+sidecarResources:
+  {}
+  # limits:
+  #   cpu: "25m"
+  #   # memory: "128Mi"
+  # requests:
+  #   cpu: "25m"
+  #   memory: "128Mi"
+
+networkHost: "0.0.0.0"
+
+volumeClaimTemplate:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 30Gi
+
+rbac:
+  create: true
+  serviceAccountName: ""
+
+podSecurityPolicy:
+  create: true
+  name: ""
+  spec:
+    privileged: true
+    fsGroup:
+      rule: RunAsAny
+    runAsUser:
+      rule: RunAsAny
+    seLinux:
+      rule: RunAsAny
+    supplementalGroups:
+      rule: RunAsAny
+    volumes:
+      - secret
+      - configMap
+      - persistentVolumeClaim
+
+persistence:
+  enabled: true
+  annotations: {}
+
+extraVolumes:
+  ""
+  # - name: extras
+  #   emptyDir: {}
+
+extraVolumeMounts:
+  ""
+  # - name: extras
+  #   mountPath: /usr/share/extras
+  #   readOnly: true
+
+extraInitContainers:
+  ""
+  # - name: fixmount
+  #   command: [ 'sh', '-c', 'chown -R 1000:1000 /usr/share/elasticsearch/data' ]
+  #   image: busybox
+  #   volumeMounts:
+  #     - mountPath: /usr/share/elasticsearch/data
+  #       name: "{{ template "uname" . }}"
+  # - name: do-something
+  #   image: busybox
+  #   command: ['do', 'something']
+
+# This is the PriorityClass settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
+priorityClassName: ""
+
+# By default this will make sure two pods don't end up on the same node
+# Changing this to a region would allow you to spread pods across regions
+antiAffinityTopologyKey: "kubernetes.io/hostname"
+
+# Hard means that by default pods will only be scheduled if there are enough nodes for them
+# and that they will never end up on the same node. Setting this to soft will do this "best effort"
+antiAffinity: "soft"
+
+# This is the node affinity settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature
+nodeAffinity: {}
+
+# The default is to deploy all pods serially. By setting this to parallel all pods are started at
+# the same time when bootstrapping the cluster
+podManagementPolicy: "Parallel"
+
+protocol: https
+httpPort: 9200
+transportPort: 9300
+
+service:
+  labels: {}
+  labelsHeadless: {}
+  type: ClusterIP
+  nodePort: ""
+  annotations: {}
+  httpPortName: http
+  transportPortName: transport
+
+updateStrategy: RollingUpdate
+
+# This is the max unavailable setting for the pod disruption budget
+# The default value of 1 will make sure that kubernetes won't allow more than 1
+# of your pods to be unavailable during maintenance
+maxUnavailable: 1
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+# The following value is deprecated,
+# please use the above podSecurityContext.fsGroup instead
+fsGroup: ""
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  # readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# How long to wait for elasticsearch to stop gracefully
+terminationGracePeriod: 120
+
+sysctlVmMaxMapCount: 262144
+
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 3
+  timeoutSeconds: 5
+
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-health.html#request-params wait_for_status
+clusterHealthCheckParams: "wait_for_status=green&timeout=1s"
+
+## Use an alternate scheduler.
+## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+##
+schedulerName: ""
+
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+
+# Enabling this will publically expose your Elasticsearch instance.
+# Only enable this if you have security enabled on your cluster
+ingress:
+  enabled: false
+  annotations:
+    {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  path: /
+  hosts:
+    - chart-example.local
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+nameOverride: ""
+fullnameOverride: ""
+
+# https://github.com/elastic/helm-charts/issues/63
+masterTerminationFix: false
+
+lifecycle:
+  {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+  # postStart:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+
+sysctlInitContainer:
+  enabled: true
+
+keystore: []

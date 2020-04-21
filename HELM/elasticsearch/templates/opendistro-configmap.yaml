@@ -1,0 +1,16 @@
+{{- if .Values.opendisctroSecurityConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "uname" . }}-opendisctrosecurityconfig
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}"
+    app: "{{ template "uname" . }}"
+data:
+{{- range $path, $config := .Values.opendisctroSecurityConfig }}
+  {{ $path }}: |
+{{ $config | indent 4 -}}
+{{- end -}}
+{{- end -}}
