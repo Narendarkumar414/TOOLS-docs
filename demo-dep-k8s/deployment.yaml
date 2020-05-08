@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-deployment
+  labels:
+    app: prometheus-java
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus-java
+  template:
+    metadata:
+      labels:
+        app: prometheus-java
+    spec:
+      containers:
+      - name: prometheus-java
+        image: harshvardhan1402/prometheus-java:1.0.1
+        ports:
+        - containerPort: 8080

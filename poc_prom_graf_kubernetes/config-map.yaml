@@ -112,27 +112,27 @@ data:
           action: replace
           target_label: kubernetes_name
         
-      - job_name: default/monitor-tenant-resource-provision
-        scrape_interval: 30s
-        scrape_timeout: 10s
-        metrics_path: "/prometheus"
-        scheme: http
-        kubernetes_sd_configs:
-          - role: endpoints
-            namespaces:
-              names:
-                - default
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_endpoint_port_name]
-            separator: ;
-            regex: web
-            replacement: $1
-            action: keep
-          - source_labels: [__meta_kubernetes_service_name]
-            separator: ;
-            regex: tenant-resource-provision-service
-            replacement: $1
-            action: keep
+      - job_name : default/monitor-prometheus
+        scrape_interval : 30s
+        scrape_timeout : 10s
+        metrics_path : "/prometheus"
+        scheme : http
+        kubernetes_sd_configs :
+        - role : endpoints
+          namespaces :
+            names :
+            - default
+        relabel_configs :
+        - source_labels : [ __meta_kubernetes_endpoint_port_name ]
+          separator : ;
+          regex : web
+          replacement : $1
+          action : keep
+        - source_labels : [ __meta_kubernetes_service_name ]
+          separator : ;
+          regex : prometheus-deployment-service
+          replacement : $1
+          action : keep
 
 
       
